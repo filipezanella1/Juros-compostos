@@ -2,7 +2,7 @@
 // Estratégia: cache-first para o "app shell", com atualização em segundo plano.
 // Suba um novo CACHE_NAME sempre que publicar uma mudança no index.html
 // para forçar os usuários a receberem a versão nova.
-const CACHE_NAME = 'simulador-juros-v1';
+const CACHE_NAME = 'simulador-juros-v2';
 const APP_SHELL = [
   './',
   './index.html',
@@ -10,7 +10,7 @@ const APP_SHELL = [
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-512-maskable.png',
-  'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js'
+  'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js'
 ];
 
 self.addEventListener('install', (event) => {
