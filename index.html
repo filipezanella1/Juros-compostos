@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Simulador de Juros Compostos</title>
+<meta name="description" content="Simule juros compostos com aportes mensais e descubra em quantos meses você atinge seu objetivo financeiro, comparando CDI, Poupança e uma taxa livre.">
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0B1F3A">
+<meta name="background-color" content="#0B1F3A">
+
+<!-- iOS: comportamento de app em tela cheia -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Simulador">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{
+    --navy: #0B1F3A;
+    --navy-2: #13294B;
+    --navy-3: #1D3A63;
+    --gold: #C6A542;
+    --gold-soft: #E8D9AE;
+    --cream: #FBF7EE;
+    --ink: #16202E;
+    --gray: #7A8494;
+    --gray-line: #26375A;
+    --card: #14263F;
+    --card-2: #17304F;
+    --blue: #6FA0D6;
+    --teal: #4FBDAE;
+    --amber: #E2A25C;
+    --danger: #E06C6C;
+    --radius: 14px;
+    --maxw: 560px;
+  }
+  :root:not([data-theme="light"]){ }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      /* The product has a fixed private-bank identity; we keep it consistent
+         regardless of system theme, only softening pure-black shadows. */
+    }
+  }
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: radial-gradient(1200px 800px at 50% -10%, #14294B 0%, var(--navy) 55%, #08152A 100%);
+    color: #E9EDF5;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    min-height: 100vh;
+    padding-bottom: 48px;
+  }
+  .wrap{ max-width: var(--maxw); margin: 0 auto; padding: 0 18px; }
+
+  /* ---- App bar ---- */
+  .appbar{
+    position: sticky; top: 0; z-index: 20;
+    backdrop-filter: blur(14px);
+    background: rgba(11,31,58,0.86);
+    border-bottom: 1px solid rgba(198,165,66,0.25);
+    padding: 14px 0 12px;
+  }
+  .appbar .wrap{ display:flex; align-items:baseline; justify-content: space-between; gap: 10px;}
+  .brand{
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 19px; font-weight: 700; color: #fff; letter-spacing: 0.2px;
+  }
+  .brand small{
+    display:block; font-family: -apple-system, sans-serif; font-weight: 400;
+    font-size: 10.5px; color: var(--gold-soft); margin-top: 2px; letter-spacing: 0.3px;
+  }
+  .refchip{
+    font-size: 10px; color: var(--gray); text-align: right; line-height: 1.5; white-space: nowrap;
+  }
+
+  /* ---- Sections ---- */
+  section{ margin-top: 22px; }
+  .eyebrow{ font-size: 12.5px; color: var(--gold-soft); font-weight: 600; margin: 0 0 8px 2px; }
+
+  /* ---- KPI carousel ---- */
+  .kpi-row{
+    display:flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory;
+    padding: 2px 2px 6px; margin: 0 -2px;
+  }
+  .kpi-row::-webkit-scrollbar{ display:none; }
+  .kpi{
+    scroll-snap-align: start;
+    flex: 0 0 78%;
+    background: linear-gradient(155deg, var(--card-2), var(--card));
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius);
+    padding: 16px 18px 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::before{
+    content:""; position:absolute; left:0; top:0; bottom:0; width:4px;
+    background: var(--accent, var(--gold));
+  }
+  .kpi .lbl{ font-size: 12.5px; font-weight: 700; color: var(--accent, var(--gold)); }
+  .kpi .num{
+    font-family: Georgia, "Times New Roman", serif; font-size: 40px; font-weight: 700;
+    color: #fff; line-height: 1.15; margin-top: 6px; display:flex; align-items:baseline; gap:8px;
+  }
+  .kpi .num span{ font-family: -apple-system, sans-serif; font-size: 14px; color: var(--gray); font-weight: 500; }
+  .kpi .sub{ font-size: 12.5px; color: var(--gray); margin-top: 4px; font-style: italic; }
+  .kpi .goal{ font-size: 11.5px; color: #9AA6B8; margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 8px; }
+
+  /* ---- Card ---- */
+  .card{
+    background: rgba(255,255,255,0.035);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+
+  /* ---- Field ---- */
+  .field{ margin-bottom: 18px; }
+  .field:last-child{ margin-bottom: 4px; }
+  .field-head{ display:flex; justify-content: space-between; align-items:baseline; margin-bottom: 8px; }
+  .field-head label{ font-size: 13.5px; color: #D6DCE8; font-weight: 500; }
+  .field-head .val{
+    font-family: Georgia, serif; font-size: 16px; font-weight: 700; color: var(--gold-soft);
+    background: rgba(198,165,66,0.12); padding: 3px 10px; border-radius: 20px;
+    border: 1px solid rgba(198,165,66,0.3);
+  }
+  input[type="number"]{
+    width: 100%; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 10px; color: #fff; font-size: 16px; padding: 11px 12px; font-family: inherit;
+  }
+  input[type="number"]:focus{ outline: 2px solid var(--gold); outline-offset: 1px; }
+  input[type="text"]{
+    width: 100%; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 10px; color: #fff; font-size: 15px; padding: 11px 12px; font-family: inherit;
+  }
+  input[type="text"]:focus{ outline: 2px solid var(--gold); outline-offset: 1px; }
+  input[type="range"]{
+    -webkit-appearance: none; width: 100%; height: 30px; background: transparent; margin-top: 2px;
+  }
+  input[type="range"]::-webkit-slider-runnable-track{
+    height: 5px; border-radius: 3px;
+    background: linear-gradient(90deg, var(--accent, var(--gold)) 0%, var(--accent, var(--gold)) var(--fill,50%), rgba(255,255,255,0.15) var(--fill,50%));
+  }
+  input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance: none; width: 22px; height: 22px; margin-top: -9px; border-radius: 50%;
+    background: #fff; border: 3px solid var(--accent, var(--gold)); box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  }
+  input[type="range"]::-moz-range-track{
+    height: 5px; border-radius: 3px; background: rgba(255,255,255,0.15);
+  }
+  input[type="range"]::-moz-range-progress{
+    height: 5px; border-radius: 3px; background: var(--accent, var(--gold));
+  }
+  input[type="range"]::-moz-range-thumb{
+    width: 18px; height: 18px; border-radius: 50%; background:#fff; border: 3px solid var(--accent, var(--gold));
+  }
+  .hint{ font-size: 11.5px; color: var(--gray); margin-top: 6px; line-height: 1.45; }
+  .divider{ height: 1px; background: rgba(255,255,255,0.08); margin: 18px 0; }
+
+  /* ---- Chart card ---- */
+  .chart-card{ background: rgba(255,255,255,0.035); border:1px solid rgba(255,255,255,0.07); border-radius: var(--radius); padding: 14px 10px 6px; }
+  .chart-card h3{ margin: 2px 8px 10px; font-size: 14px; font-weight: 600; color: #E9EDF5; }
+  .legend{ display:flex; gap: 14px; flex-wrap: wrap; padding: 4px 10px 10px; font-size: 11.5px; color: var(--gray); }
+  .legend span{ display:inline-flex; align-items:center; gap:5px; }
+  .legend i{ width:10px; height:10px; border-radius:3px; display:inline-block; }
+  canvas{ max-width: 100%; }
+
+  /* ---- Buttons ---- */
+  .actions{ display:flex; gap: 10px; margin-top: 14px; }
+  button{
+    font-family: inherit; font-size: 13.5px; font-weight: 600; border-radius: 10px;
+    padding: 11px 14px; border: 1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.05);
+    color: #D6DCE8; cursor: pointer;
+  }
+  button:active{ transform: scale(0.97); }
+  button.primary{ background: var(--gold); border-color: var(--gold); color: #201704; flex:1; }
+  button.ghost{ flex: 0 0 auto; }
+
+  details{ margin-top: 4px; }
+  summary{ font-size: 12.5px; color: var(--gold-soft); cursor: pointer; padding: 6px 2px; list-style: none; }
+  summary::-webkit-details-marker{ display:none; }
+  summary:before{ content: "＋  "; }
+  details[open] summary:before{ content: "－  "; }
+  .notes p{ font-size: 12px; color: var(--gray); line-height: 1.6; margin: 6px 2px; }
+
+  footer{ text-align:center; font-size: 10.5px; color: #58627A; margin-top: 30px; padding: 0 18px; line-height:1.6; }
+
+  @media (min-width: 620px){
+    .kpi{ flex-basis: 32%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="appbar">
+  <div class="wrap">
+    <div class="brand">Simulador de Juros<br>Compostos<small>Edição Premium · Objetivos financeiros</small></div>
+    <div class="refchip">CDI 13,90% a.a.<br>Poupança 6,17% a.a.<br>Ref. BCB, 10/09/2026</div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <section>
+    <p class="eyebrow">Tempo até o objetivo</p>
+    <div class="kpi-row" id="kpiRow"></div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Parâmetros</p>
+    <div class="card">
+
+      <div class="field">
+        <div class="field-head"><label for="inicial">Valor inicial</label><span class="val" id="valInicial"></span></div>
+        <input type="number" id="inicial" inputmode="decimal" value="5000" min="0" step="100">
+      </div>
+
+      <div class="field">
+        <div class="field-head"><label for="aporte">Aporte mensal</label><span class="val" id="valAporte"></span></div>
+        <input type="number" id="aporte" inputmode="decimal" value="500" min="0" step="50">
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="field">
+        <div class="field-head"><label for="cdi">Taxa CDI atual (% a.a.)</label><span class="val" id="valCdi">13,90%</span></div>
+        <input type="range" id="cdi" min="0" max="25" step="0.05" value="13.90" style="--accent:var(--blue)">
+        <p class="hint">Referência: Banco Central do Brasil (BCB), 13,90% a.a. em 10/09/2026. Ajuste se o CDI mudar.</p>
+      </div>
+
+      <div class="field">
+        <div class="field-head"><label for="poup">Taxa Poupança atual (% a.a.)</label><span class="val" id="valPoup">6,17%</span></div>
+        <input type="range" id="poup" min="0" max="15" step="0.05" value="6.17" style="--accent:var(--teal)">
+        <p class="hint">Regra vigente (Selic acima de 8,5% a.a.): 0,5% ao mês + TR (TR ≈ 0 aqui).</p>
+      </div>
+
+      <div class="field">
+        <div class="field-head"><label for="livre">Taxa variável — em aberto (% a.a.)</label><span class="val" id="valLivre">8,00%</span></div>
+        <input type="range" id="livre" min="0" max="30" step="0.10" value="8.00" style="--accent:var(--amber)">
+        <p class="hint">Use para simular qualquer investimento: um fundo, uma ação, um CDB específico.</p>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="field">
+        <div class="field-head"><label for="descricao">Objetivo financeiro</label></div>
+        <input type="text" id="descricao" value="Comprar um carro" maxlength="60">
+      </div>
+
+      <div class="field">
+        <div class="field-head"><label for="valorObjetivo">Valor do objetivo</label><span class="val" id="valObjetivo"></span></div>
+        <input type="number" id="valorObjetivo" inputmode="decimal" value="60000" min="0" step="1000">
+      </div>
+
+      <div class="actions">
+        <button class="ghost" id="resetBtn" type="button">Restaurar padrão</button>
+        <button class="primary" id="installBtn" type="button" style="display:none;">Instalar app</button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Evolução do patrimônio até <span id="metaLabel">o objetivo</span></p>
+    <div class="chart-card">
+      <canvas id="lineChart" height="230"></canvas>
+      <div class="legend">
+        <span><i style="background:var(--blue)"></i>CDI</span>
+        <span><i style="background:var(--teal)"></i>Poupança</span>
+        <span><i style="background:var(--amber)"></i>Taxa variável</span>
+        <span><i style="background:var(--gold)"></i>Meta</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Comparativo — meses até o objetivo</p>
+    <div class="chart-card">
+      <canvas id="barChart" height="190"></canvas>
+    </div>
+  </section>
+
+  <section>
+    <details>
+      <summary>Metodologia e fontes</summary>
+      <div class="notes">
+        <p>Juros compostos mensais com aporte constante: saldo(mês) = saldo(mês−1) × (1 + taxa mensal) + aporte. A taxa mensal equivalente é (1 + taxa anual)^(1/12) − 1.</p>
+        <p>CDI: 13,90% a.a. — Banco Central do Brasil, dado de 10/09/2026. Acompanha de perto a Selic; atualize quando o Copom se reunir.</p>
+        <p>Poupança: regra vigente desde 2012 (Selic acima de 8,5% a.a.) — 0,5% ao mês + TR. Aqui aproximamos TR ≈ 0.</p>
+        <p>O tempo até o objetivo é o primeiro mês em que o saldo projetado atinge o valor definido, calculado até um horizonte de 40 anos.</p>
+        <p>Uso pessoal e educacional. Não constitui recomendação de investimento.</p>
+      </div>
+    </details>
+  </section>
+
+</div>
+
+<footer>Seus dados ficam apenas neste aparelho — nada é enviado a servidores.</footer>
+
+<script>
+(function(){
+  const $ = (id) => document.getElementById(id);
+  const BRL = (v) => v.toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0});
+  const PCT = (v) => v.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) + '%';
+
+  const DEFAULTS = { inicial:5000, aporte:500, cdi:13.90, poup:6.17, livre:8.00, descricao:'Comprar um carro', valorObjetivo:60000 };
+  const STORAGE_KEY = 'sjc_inputs_v1';
+
+  const fields = ['inicial','aporte','cdi','poup','livre','descricao','valorObjetivo'];
+  const els = {}; fields.forEach(f => els[f] = $(f));
+
+  function loadSaved(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return;
+      const data = JSON.parse(raw);
+      fields.forEach(f => { if(data[f] !== undefined) els[f].value = data[f]; });
+    }catch(e){ /* ignore, use defaults */ }
+  }
+  function persist(){
+    try{
+      const data = {}; fields.forEach(f => data[f] = els[f].value);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }catch(e){ /* storage unavailable, silently skip */ }
+  }
+
+  function monthlyRate(annualPct){ return Math.pow(1 + annualPct/100, 1/12) - 1; }
+
+  function monthsToGoal(initial, aporte, annualPct, goal, maxMonths){
+    const i = monthlyRate(annualPct);
+    let saldo = initial;
+    if(saldo >= goal) return 0;
+    for(let m=1; m<=maxMonths; m++){
+      saldo = saldo*(1+i) + aporte;
+      if(saldo >= goal) return m;
+    }
+    return null;
+  }
+
+  function series(initial, aporte, annualPct, years){
+    const i = monthlyRate(annualPct);
+    const out = [initial];
+    let saldo = initial;
+    for(let m=1; m<=years*12; m++){
+      saldo = saldo*(1+i) + aporte;
+      if(m % 12 === 0) out.push(saldo);
+    }
+    return out;
+  }
+
+  let lineChart, barChart;
+
+  function render(){
+    const inicial = parseFloat(els.inicial.value) || 0;
+    const aporte  = parseFloat(els.aporte.value) || 0;
+    const cdi     = parseFloat(els.cdi.value) || 0;
+    const poup    = parseFloat(els.poup.value) || 0;
+    const livre   = parseFloat(els.livre.value) || 0;
+    const goal    = parseFloat(els.valorObjetivo.value) || 0;
+    const desc    = els.descricao.value.trim() || 'seu objetivo';
+
+    $('valInicial').textContent = BRL(inicial);
+    $('valAporte').textContent  = BRL(aporte);
+    $('valCdi').textContent     = PCT(cdi);
+    $('valPoup').textContent    = PCT(poup);
+    $('valLivre').textContent   = PCT(livre);
+    $('valObjetivo').textContent= BRL(goal);
+    $('metaLabel').textContent  = desc.toLowerCase().startsWith('compr') || desc === '' ? desc : desc;
+
+    const MAXM = 480;
+    const scenarios = [
+      { key:'cdi',   label:'CDI',           color: getCss('--blue'),  months: monthsToGoal(inicial,aporte,cdi,goal,MAXM) },
+      { key:'poup',  label:'Poupança',      color: getCss('--teal'),  months: monthsToGoal(inicial,aporte,poup,goal,MAXM) },
+      { key:'livre', label:'Taxa variável', color: getCss('--amber'), months: monthsToGoal(inicial,aporte,livre,goal,MAXM) },
+    ];
+
+    // ---- KPI cards ----
+    const kpiRow = $('kpiRow');
+    kpiRow.innerHTML = '';
+    scenarios.forEach(s => {
+      const card = document.createElement('div');
+      card.className = 'kpi';
+      card.style.setProperty('--accent', s.color);
+      const monthsTxt = s.months === null ? '> 40 anos' : s.months;
+      const subTxt = s.months === null ? 'Meta não atingida no horizonte simulado' :
+        `${Math.floor(s.months/12)} anos e ${s.months%12} meses`;
+      card.innerHTML = `
+        <div class="lbl">${s.label}</div>
+        <div class="num">${monthsTxt}${s.months!==null ? '<span>meses</span>' : ''}</div>
+        <div class="sub">${subTxt}</div>
+        <div class="goal">Objetivo: ${desc} — ${BRL(goal)}</div>`;
+      kpiRow.appendChild(card);
+    });
+
+    // ---- Chart horizon: cover the slowest scenario reached, with headroom ----
+    const reached = scenarios.map(s=>s.months).filter(m => m !== null);
+    const maxNeeded = reached.length ? Math.max(...reached) : 240;
+    let years = Math.min(40, Math.max(5, Math.ceil((maxNeeded/12)*1.3)));
+
+    const labels = Array.from({length:years+1}, (_,y)=>y);
+    const dCdi   = series(inicial,aporte,cdi,years);
+    const dPoup  = series(inicial,aporte,poup,years);
+    const dLivre = series(inicial,aporte,livre,years);
+    const dMeta  = labels.map(()=>goal);
+
+    if(lineChart) lineChart.destroy();
+    lineChart = new Chart($('lineChart'), {
+      type: 'line',
+      data: { labels, datasets: [
+        { label:'CDI', data:dCdi, borderColor:getCss('--blue'), backgroundColor:'transparent', borderWidth:2.5, tension:0.15, pointRadius:0 },
+        { label:'Poupança', data:dPoup, borderColor:getCss('--teal'), backgroundColor:'transparent', borderWidth:2.5, tension:0.15, pointRadius:0 },
+        { label:'Taxa variável', data:dLivre, borderColor:getCss('--amber'), backgroundColor:'transparent', borderWidth:2.5, tension:0.15, pointRadius:0 },
+        { label:'Meta', data:dMeta, borderColor:getCss('--gold'), backgroundColor:'transparent', borderWidth:1.5, borderDash:[6,4], pointRadius:0 },
+      ]},
+      options: {
+        responsive:true,
+        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:(ctx)=> ctx.dataset.label+': '+BRL(ctx.parsed.y) } } },
+        scales:{
+          x:{ title:{display:true,text:'Ano',color:'#7A8494'}, ticks:{color:'#8A93A6', maxTicksLimit:8}, grid:{color:'rgba(255,255,255,0.06)'} },
+          y:{ ticks:{color:'#8A93A6', callback:(v)=> (v/1000).toLocaleString('pt-BR')+'k'}, grid:{color:'rgba(255,255,255,0.06)'} }
+        }
+      }
+    });
+
+    if(barChart) barChart.destroy();
+    barChart = new Chart($('barChart'), {
+      type:'bar',
+      data:{ labels: scenarios.map(s=>s.label),
+        datasets:[{ data: scenarios.map(s=>s.months===null?0:s.months),
+          backgroundColor: scenarios.map(s=>s.color), borderRadius:6, maxBarThickness:56 }]},
+      options:{
+        responsive:true,
+        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:(ctx)=> ctx.parsed.y+' meses' } } },
+        scales:{
+          x:{ ticks:{color:'#C7CEDC'}, grid:{display:false} },
+          y:{ title:{display:true,text:'Meses',color:'#7A8494'}, ticks:{color:'#8A93A6'}, grid:{color:'rgba(255,255,255,0.06)'} }
+        }
+      }
+    });
+
+    persist();
+  }
+
+  function getCss(varName){
+    return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  }
+
+  fields.forEach(f => {
+    els[f].addEventListener('input', render);
+  });
+
+  $('resetBtn').addEventListener('click', () => {
+    fields.forEach(f => els[f].value = DEFAULTS[f]);
+    render();
+  });
+
+  loadSaved();
+  render();
+
+  // Registra o service worker (só funciona quando servido via https:// ou localhost,
+  // por isso não roda dentro do preview do Claude — funcionará normalmente no GitHub Pages).
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('service-worker.js').catch(() => {
+        /* ambiente não suporta service worker (ex.: preview local via file://) — sem problema */
+      });
+    });
+  }
+
+  // Botão de instalação nativa (Android/Chrome). No iOS o navegador não dispara
+  // esse evento — lá a instalação continua sendo via "Adicionar à Tela de Início".
+  let deferredPrompt = null;
+  const installBtn = $('installBtn');
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.style.display = 'inline-block';
+  });
+  installBtn.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    installBtn.style.display = 'none';
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+  });
+  window.addEventListener('appinstalled', () => {
+    installBtn.style.display = 'none';
+  });
+})();
+</script>
+</body>
+</html>

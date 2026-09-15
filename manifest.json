@@ -1,0 +1,17 @@
+{
+  "name": "Simulador de Juros Compostos",
+  "short_name": "Simulador",
+  "description": "Projeção de patrimônio com aportes mensais, comparando CDI, Poupança e uma taxa livre, até a conquista do seu objetivo financeiro.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0B1F3A",
+  "theme_color": "#0B1F3A",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
